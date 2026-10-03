@@ -57,9 +57,7 @@ export class AuthController {
 
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
-  async refresh(
-    @Req() request: Request,
-  ) {
+  async refresh(@Req() request: Request) {
     const refreshToken = request.cookies?.refreshToken;
 
     if (!refreshToken) {
