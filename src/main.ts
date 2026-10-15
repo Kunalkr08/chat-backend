@@ -1,3 +1,4 @@
+
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import cookieParser from 'cookie-parser';
@@ -23,8 +24,11 @@ async function bootstrap() {
   );
 
   app.useGlobalFilters(new HttpExceptionFilter());
+
+  const allowedOrigins = envConfig.corsOrigins;
+
   app.enableCors({
-    origin: ['http://localhost:8081', 'http://10.133.51.180:8081'],
+    origin: allowedOrigins,
     credentials: true,
   });
 

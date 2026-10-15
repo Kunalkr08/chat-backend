@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -28,7 +28,7 @@ model Message {
   receiver User @relation("ReceivedMessages", fields: [receiverId], references: [id])
   
   readAt     DateTime?
-  
+
   @@index([senderId, receiverId])
   @@index([receiverId, senderId])
 }

@@ -20,6 +20,7 @@ import { AuthService } from './auth.service.js';
 import type { LoginUserDto } from '../users/user.types.js';
 import { JwtAccessGuard } from './jwt-access.guard.js';
 import type { Request } from 'express';
+import { envConfig } from '../../config/env.config.js';
 
 class LoginDto implements LoginUserDto {
   @IsEmail()
@@ -44,8 +45,9 @@ export class AuthController {
 
     response.cookie('refreshToken', result.refreshToken, {
       httpOnly: true,
-      secure: false,
-      sameSite: 'none',
+      secure: envConfig.nodeEnv === 'production',
+      sameSite: envConfig.nodeEnv === 'production' ? 'none' : 'lax',
+      path: '/',
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 

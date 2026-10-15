@@ -1,0 +1,30 @@
+
+# Dependencies (install inside Docker)
+node_modules/
+
+# Build output
+dist/
+coverage/
+
+# Git
+.git/
+.github/
+
+# Environment secrets
+.env
+.env.*
+!.env.example
+
+# Local databases and backups
+prisma/dev.db
+prisma/dev-backup.db
+backups/
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS/editor files
+.DS_Store
+.idea/
+.vscode/
