@@ -17,9 +17,7 @@ import type { SendMessageDto } from './chat.types.js';
     origin: '*',
   },
 })
-export class ChatGateway
-  implements OnGatewayConnection, OnGatewayDisconnect
-{
+export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
   server: Server;
 
@@ -44,9 +42,7 @@ export class ChatGateway
         authToken ?? headerToken ?? '',
       );
 
-      console.log(
-        `Authenticated socket user: ${client.data.user.sub}`,
-      );
+      console.log(`Authenticated socket user: ${client.data.user.sub}`);
     } catch {
       client.disconnect(true);
       return;
@@ -115,31 +111,63 @@ export class ChatGateway
     });
 
     // Send to sender
-    this.server.to(client.id).emit(
-      'new_message',
-      chatMessage,
-    );
+    this.server.to(client.id).emit('new_message', chatMessage);
 
     // Send to receiver
-    const receiverSocketId = this.connectedUsers.get(
-      payload.receiverId,
-    );
+    const receiverSocketId = this.connectedUsers.get(payload.receiverId);
 
-    if (
-      receiverSocketId &&
-      receiverSocketId !== client.id
-    ) {
-      this.server
-        .to(receiverSocketId)
-        .emit('new_message', chatMessage);
+    if (receiverSocketId && receiverSocketId !== client.id) {
+      this.server.to(receiverSocketId).emit('new_message', chatMessage);
     }
 
     return chatMessage;
   }
 
-  private getAuthenticatedUserId(
-    client: Socket,
-  ): string | undefined {
+  @SubscribeMessage('mark_messages_read')
+  async markMessagesRead(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() payload: { senderId: string },
+  ) {
+    const readerId = this.getAuthenticatedUserId(client);
+
+    if (!readerId) {
+      client.emit('auth_error', {
+        message: 'Valid access token required',
+      });
+      return;
+    }
+
+    if (!payload.senderId || payload.senderId === readerId) {
+      client.emit('message_error', {
+        message: 'A valid senderId is required',
+      });
+      return;
+    }
+
+    // Mark messages from this sender as read by the current user.
+    const result = await this.chatService.markMessagesAsRead(
+      readerId,
+      payload.senderId,
+    );
+
+    // Notify the original sender, if connected.
+    const senderSocketId = this.connectedUsers.get(payload.senderId);
+
+    if (senderSocketId) {
+      this.server.to(senderSocketId).emit('messages_read', {
+        readerId,
+        readAt: result.readAt.toISOString(),
+      });
+    }
+
+    return {
+      success: true,
+      updatedCount: result.updatedCount,
+      readAt: result.readAt.toISOString(),
+    };
+  }
+
+  private getAuthenticatedUserId(client: Socket): string | undefined {
     return client.data.user?.sub as string | undefined;
   }
 }

@@ -26,7 +26,9 @@ model Message {
 
   sender   User @relation("SentMessages", fields: [senderId], references: [id])
   receiver User @relation("ReceivedMessages", fields: [receiverId], references: [id])
-
+  
+  readAt     DateTime?
+  
   @@index([senderId, receiverId])
   @@index([receiverId, senderId])
 }

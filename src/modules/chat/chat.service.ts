@@ -8,6 +8,7 @@ type MessageRecord = {
   receiverId: string;
   content: string;
   createdAt: Date;
+  readAt: Date | null;
 };
 
 @Injectable()
@@ -29,6 +30,7 @@ export class ChatService {
       receiverId: message.receiverId,
       content: message.content,
       createdAt: message.createdAt.toISOString(),
+      readAt: message?.readAt?.toISOString() ?? null,
     };
   }
 
@@ -52,6 +54,29 @@ export class ChatService {
       receiverId: message.receiverId,
       content: message.content,
       createdAt: message.createdAt.toISOString(),
+      readAt: message.readAt?.toISOString() ?? null,
     }));
+  }
+
+  async markMessagesAsRead(readerId: string, senderId: string) {
+    const readAt = new Date();
+
+    const result = await this.prisma.message.updateMany({
+      where: {
+        senderId,
+        receiverId: readerId,
+        readAt: null,
+      },
+      data: {
+        readAt,
+      },
+    });
+
+    return {
+      senderId,
+      readerId,
+      readAt,
+      updatedCount: result.count,
+    };
   }
 }
