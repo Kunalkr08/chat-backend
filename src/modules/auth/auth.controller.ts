@@ -92,4 +92,30 @@ export class AuthController {
       createdAt: null,
     };
   }
+
+  @Post('logout')
+  @HttpCode(HttpStatus.OK)
+  async logout(@Res({ passthrough: true }) response: Response) {
+
+    console.log("logout called")
+    response.cookie('refreshToken', '', {
+      httpOnly: true,
+      secure: envConfig.nodeEnv === 'production',
+      sameSite: envConfig.nodeEnv === 'production' ? 'none' : 'lax',
+      path: '/',
+      expires: new Date(0),
+      maxAge: 0,
+    });
+
+    response.clearCookie('refreshToken', {
+      httpOnly: true,
+      secure: envConfig.nodeEnv === 'production',
+      sameSite: envConfig.nodeEnv === 'production' ? 'none' : 'lax',
+      path: '/',
+    });
+
+    return {
+      message: 'Logged out successfully',
+    };
+  }
 }
