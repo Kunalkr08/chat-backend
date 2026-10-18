@@ -63,3 +63,5 @@ prisma/dev.db
 prisma/dev.db-journal
 prisma/migration-archive
 prisma/migrations
+
+temp.ts
