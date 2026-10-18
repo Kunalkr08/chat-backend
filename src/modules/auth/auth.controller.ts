@@ -11,29 +11,36 @@ import {
   UseGuards,
 } from '@nestjs/common';
 
-import type { Response } from 'express';
-
-import { IsEmail, IsNotEmpty, IsString } from 'class-validator';
-
+import type { Response, Request } from 'express';
 import { AuthService } from './auth.service.js';
-
-import type { LoginUserDto } from '../users/user.types.js';
 import { JwtAccessGuard } from './jwt-access.guard.js';
-import type { Request } from 'express';
 import { envConfig } from '../../config/env.config.js';
-
-class LoginDto implements LoginUserDto {
-  @IsEmail()
-  email: string;
-
-  @IsString()
-  @IsNotEmpty()
-  password: string;
-}
+import {
+  LoginDto,
+  RegisterDto,
+  VerifyEmailDto,
+} from './auth.types.js';
 
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
+
+  // Register a new user and send the OTP.
+  @Post('register')
+  @HttpCode(HttpStatus.CREATED)
+  async register(@Body() dto: RegisterDto) {
+    return this.authService.register(dto);
+  }
+
+  // Verify the four-digit OTP.
+  @Post('verify-email')
+  @HttpCode(HttpStatus.OK)
+  async verifyEmail(@Body() dto: VerifyEmailDto) {
+    return this.authService.verifyEmail(
+      dto.email,
+      dto.otp,
+    );
+  }
 
   @Post('login')
   @HttpCode(HttpStatus.OK)
@@ -46,7 +53,8 @@ export class AuthController {
     response.cookie('refreshToken', result.refreshToken, {
       httpOnly: true,
       secure: envConfig.nodeEnv === 'production',
-      sameSite: envConfig.nodeEnv === 'production' ? 'none' : 'lax',
+      sameSite:
+        envConfig.nodeEnv === 'production' ? 'none' : 'lax',
       path: '/',
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
@@ -63,10 +71,13 @@ export class AuthController {
     const refreshToken = request.cookies?.refreshToken;
 
     if (!refreshToken) {
-      throw new UnauthorizedException('Refresh token required');
+      throw new UnauthorizedException(
+        'Refresh token required',
+      );
     }
 
-    const result = await this.authService.refreshAccessToken(refreshToken);
+    const result =
+      await this.authService.refreshAccessToken(refreshToken);
 
     return {
       accessToken: result.accessToken,
@@ -95,22 +106,14 @@ export class AuthController {
 
   @Post('logout')
   @HttpCode(HttpStatus.OK)
-  async logout(@Res({ passthrough: true }) response: Response) {
-
-    console.log("logout called")
-    response.cookie('refreshToken', '', {
-      httpOnly: true,
-      secure: envConfig.nodeEnv === 'production',
-      sameSite: envConfig.nodeEnv === 'production' ? 'none' : 'lax',
-      path: '/',
-      expires: new Date(0),
-      maxAge: 0,
-    });
-
+  async logout(
+    @Res({ passthrough: true }) response: Response,
+  ) {
     response.clearCookie('refreshToken', {
       httpOnly: true,
       secure: envConfig.nodeEnv === 'production',
-      sameSite: envConfig.nodeEnv === 'production' ? 'none' : 'lax',
+      sameSite:
+        envConfig.nodeEnv === 'production' ? 'none' : 'lax',
       path: '/',
     });
 

@@ -12,9 +12,13 @@ model User {
   email            String    @unique
   name             String
   passwordHash     String
+  isEmailVerified  Boolean   @default(false)
   createdAt        DateTime  @default(now())
+
   sentMessages     Message[] @relation("SentMessages")
   receivedMessages Message[] @relation("ReceivedMessages")
+
+  emailVerification EmailVerification?
 }
 
 model Message {
@@ -23,12 +27,23 @@ model Message {
   receiverId String
   content    String
   createdAt  DateTime @default(now())
+  readAt     DateTime?
 
   sender   User @relation("SentMessages", fields: [senderId], references: [id])
   receiver User @relation("ReceivedMessages", fields: [receiverId], references: [id])
-  
-  readAt     DateTime?
 
   @@index([senderId, receiverId])
   @@index([receiverId, senderId])
+}
+
+model EmailVerification {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([expiresAt])
 }
