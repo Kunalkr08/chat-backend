@@ -1,123 +1,147 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Connectify — Real-Time Chat Backend
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+The backend that powers **Connectify**, a real-time messaging application built with NestJS and TypeScript. It provides authentication, email verification, persistent message storage, and real-time communication between users.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+**Frontend:** [chat-frontend](https://github.com/Kunalkr08/chat-frontend)
 
-## Description
+## Features
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+- **User Authentication:** Registration and login with password hashing and JWT-based authentication.
+- **Email Verification:** Email verification flow for newly registered users using OTP-based verification.
+- **Secure Sessions:** HTTP-only cookies for managing authentication tokens.
+- **REST APIs:** Endpoints for authentication, user information, and chat-related operations.
+- **Real-Time Messaging:** Socket.IO-based communication for sending and receiving messages.
+- **Message Persistence:** Store messages in PostgreSQL using Prisma ORM.
+- **Read Receipts:** Track message read status and notify users when messages are read.
+- **Database Migrations:** Manage database schema changes with Prisma Migrate.
+- **Input Validation:** Validate incoming requests using class-validator.
 
-## Project setup
+## Tech Stack
 
-```bash
-$ npm install
+| Component | Technology |
+|---|---|
+| Runtime | Node.js |
+| Backend framework | NestJS |
+| Language | TypeScript |
+| Database | PostgreSQL (Neon supported) |
+| ORM | Prisma |
+| Real-time communication | Socket.IO |
+| Authentication | JWT, HTTP-only cookies |
+| Password hashing | bcryptjs |
+| Email delivery | Resend |
+| Testing | Vitest |
+
+## Architecture
+
+Connectify uses REST APIs for standard application operations and Socket.IO for real-time events.
+
+```text
+React Native App
+       |
+       | REST API requests
+       | Socket.IO events
+       v
+NestJS Backend
+       |
+       +---- Authentication & Authorization
+       |
+       +---- User & Messaging Logic
+       |
+       +---- Socket.IO Gateway
+       |
+       v
+Prisma ORM
+       |
+       v
+PostgreSQL Database
 ```
 
-## Authentication
+The backend handles application logic and database operations, while the frontend is responsible for displaying the chat interface and handling user interactions.
 
-Set `JWT_SECRET` to a random value of at least 32 characters in `.env`. JWTs
-expire after 15 minutes by default; override this with `JWT_TTL_SECONDS`.
+## Getting Started
 
-`POST /auth/login` accepts an email and password and returns a JWT in `token`.
-Send it as `Authorization: Bearer <token>` for protected HTTP routes, or as
-`auth.token` when connecting to the Socket.IO gateway.
+### Prerequisites
 
-## Compile and run the project
+- Node.js and npm
+- PostgreSQL database (local PostgreSQL or Neon)
+- Git
+- Email service credentials for testing email verification
 
-```bash
-# development
-$ npm run start
-
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
-```
-
-## Run tests
+### 1. Clone the repository
 
 ```bash
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+git clone https://github.com/Kunalkr08/chat-backend.git
+cd chat-backend
+npm install
 ```
 
-## Deployment
+### 2. Configure environment variables
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+Create a `.env` file in the project root. Configure the variables required by your current backend implementation.
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+Typical configuration includes:
+
+```env
+DATABASE_URL="your_postgresql_connection_string"
+JWT_SECRET="your_long_random_secret"
+JWT_TTL_SECONDS=900
+```
+
+Also configure the email provider credentials and any frontend/CORS settings required by your implementation.
+
+**Important:** Use your own credentials, never commit `.env`, and do not copy production secrets into public files.
+
+### 3. Set up the database
+
+Generate the Prisma Client:
 
 ```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+npx prisma generate
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+For an existing database with committed migrations, apply them with:
 
-## Observability
+```bash
+npx prisma migrate deploy
+```
 
-In production applications, observability is essential for understanding how your system behaves, detecting issues early, and maintaining reliable performance.
+For local development when creating a new migration, use:
 
-[NestJS Observe](https://observe.nestjs.com) automatically instruments your NestJS application, giving you deep visibility into your system with minimal setup:
+```bash
+npx prisma migrate dev
+```
 
-- **Distributed tracing:** Follow requests across services and understand how they flow through your system.
-- **Waterfall analysis:** Visualize request execution and identify slow operations, bottlenecks, and unexpected delays.
-- **Performance analysis:** Analyze application performance in real time and quickly pinpoint areas that need optimization.
-- **Metrics:** Track key application and infrastructure metrics to understand system health and performance trends.
-- **Logging:** Centralize and correlate logs with traces and other telemetry to make debugging easier.
-- **Error tracking:** Detect errors quickly and investigate their root causes with the surrounding context.
-- **SLA monitoring:** Track service-level objectives and identify when your application is approaching or exceeding defined thresholds.
-- **Alarms and alerts:** Set up alerts for critical errors, performance degradation, SLA violations, and other anomalies so your team can react quickly.
+Use the migration workflow appropriate to your environment. Do not run development migrations against production without reviewing the changes.
 
-## Resources
+### 4. Start the server
 
-Check out a few resources that may come in handy when working with NestJS:
+```bash
+npm run start:dev
+```
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Auto-instrument your application with [NestJS Observer](https://observer.nestjs.com). Distributed tracing, metrics, and logging made easy. Error tracking and performance monitoring for your NestJS applications.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+The backend runs on the configured port. If using the default configuration, the application is expected to be available at `http://localhost:3000`.
 
-## Support
+### 5. Connect the frontend
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+Clone and configure the [Connectify frontend](https://github.com/Kunalkr08/chat-frontend). Set its API and Socket.IO URLs to point to this backend.
 
-## Stay in touch
+For a physical Android device, use your computer's reachable LAN IP or a deployed backend URL instead of `localhost`.
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+## Development Commands
+
+| Command | Purpose |
+|---|---|
+| `npm run start:dev` | Start in watch mode |
+| `npm run build` | Build the application |
+| `npm run start:prod` | Run the production build |
+| `npm run test` | Run unit tests |
+| `npm run test:e2e` | Run end-to-end tests |
+| `npm run test:cov` | Generate test coverage |
+
+## Related Repository
+
+- **Mobile application:** [github.com/Kunalkr08/chat-frontend](https://github.com/Kunalkr08/chat-frontend)
 
 ## License
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+Refer to the repository's license and usage terms.
