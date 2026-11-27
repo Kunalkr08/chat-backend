@@ -2,7 +2,6 @@ import {
   ConflictException,
   Injectable,
   Logger,
-  ServiceUnavailableException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -18,6 +17,17 @@ type TokenPayload = {
   sub: string;
   email: string;
   name: string;
+};
+
+const OTP_TTL_MS = 10 * 60 * 1000;
+const OTP_RESEND_COOLDOWN_SECONDS = 60;
+
+type VerificationDeliveryStatus = 'accepted' | 'failed' | 'cooldown';
+
+type VerificationResponse = {
+  message: string;
+  deliveryStatus: VerificationDeliveryStatus;
+  resendAfterSeconds: number;
 };
 
 @Injectable()
@@ -59,7 +69,13 @@ export class AuthService {
     const userCheck = await this.users.findUserByEmail(email);
 
     if (userCheck) {
-      throw new ConflictException('A user with this email already exists.');
+      if (userCheck.isEmailVerified) {
+        throw new ConflictException('A user with this email already exists.');
+      }
+
+      // A retry after a provider failure should take the user back into the
+      // verification flow instead of leaving them stuck on a duplicate error.
+      return this.requestVerificationCode(email);
     }
 
     this.logger.log(`Registration requested for ${email}`);
@@ -67,7 +83,7 @@ export class AuthService {
     // Generate the OTP and its expiry.
     const otp = randomInt(1000, 10000).toString();
     const otpHash = this.hashOtp(email, otp);
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+    const expiresAt = new Date(Date.now() + OTP_TTL_MS);
 
     // Create user + OTP record atomically.
     const user = await this.users.createUserWithEmailVerification(
@@ -83,29 +99,14 @@ export class AuthService {
       `User created successfully; attempting verification email for ${email}`,
     );
 
-    // SMTP is external to the database transaction.
-    try {
-      await this.emailService.sendVerificationEmail(user.email, otp);
+    // Keep the account recoverable if the provider is temporarily unavailable.
+    const emailAccepted = await this.sendVerificationEmail(user.email, otp);
 
-      this.logger.log(`Verification email sent successfully to ${email}`);
-    } catch (error) {
-      const err = error instanceof Error ? error : undefined;
+    return this.verificationResponse(emailAccepted ? 'accepted' : 'failed');
+  }
 
-      this.logger.error(
-        `Verification email delivery failed for ${email}. ` +
-          `Error: ${err?.message ?? String(error)}`,
-        err?.stack,
-      );
-
-      throw new ServiceUnavailableException(
-        'Your account was created, but the verification email could not be sent. Please try again later or request a new verification code.',
-      );
-    }
-
-    return {
-      message:
-        'Account created. Enter the OTP sent to your email to verify your account.',
-    };
+  async resendVerification(email: string): Promise<VerificationResponse> {
+    return this.requestVerificationCode(email.trim().toLowerCase());
   }
 
   async verifyEmail(email: string, otp: string) {
@@ -219,6 +220,71 @@ export class AuthService {
     return createHmac('sha256', this.otpHashSecret)
       .update(`${email.trim().toLowerCase()}:${otp}`)
       .digest('hex');
+  }
+
+  private async requestVerificationCode(
+    email: string,
+  ): Promise<VerificationResponse> {
+    const otp = randomInt(1000, 10000).toString();
+    const result = await this.users.prepareEmailVerificationResend(
+      email,
+      this.hashOtp(email, otp),
+      new Date(Date.now() + OTP_TTL_MS),
+      OTP_RESEND_COOLDOWN_SECONDS,
+    );
+
+    if (result.state !== 'prepared') {
+      return {
+        message:
+          'If this email has an unverified account, a code will be sent when available.',
+        deliveryStatus: 'cooldown',
+        resendAfterSeconds: result.retryAfterSeconds,
+      };
+    }
+
+    const accepted = await this.sendVerificationEmail(email, otp);
+
+    return this.verificationResponse(
+      accepted ? 'accepted' : 'failed',
+      OTP_RESEND_COOLDOWN_SECONDS,
+    );
+  }
+
+  private async sendVerificationEmail(
+    email: string,
+    otp: string,
+  ): Promise<boolean> {
+    try {
+      await this.emailService.sendVerificationEmail(email, otp);
+      this.logger.log(`Verification email request accepted for ${email}`);
+      return true;
+    } catch (error) {
+      const err = error instanceof Error ? error : undefined;
+
+      this.logger.error(
+        `Verification email request failed for ${email}. ` +
+          `Error: ${err?.message ?? String(error)}`,
+        err?.stack,
+      );
+
+      return false;
+    }
+  }
+
+  private verificationResponse(
+    deliveryStatus: VerificationDeliveryStatus,
+    resendAfterSeconds = OTP_RESEND_COOLDOWN_SECONDS,
+  ): VerificationResponse {
+    const message = {
+      accepted:
+        'A verification code request was accepted. Check your inbox and spam folder.',
+      failed:
+        'Your account is pending verification, but we could not request the email. Please try again shortly.',
+      cooldown:
+        'A verification code was requested recently. Please wait before requesting another.',
+    }[deliveryStatus];
+
+    return { message, deliveryStatus, resendAfterSeconds };
   }
 
   private getSecret(config: ConfigService, key: string): string {

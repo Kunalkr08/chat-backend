@@ -113,6 +113,108 @@ export class UserService {
     }
   }
 
+  async prepareEmailVerificationResend(
+    email: string,
+    tokenHash: string,
+    expiresAt: Date,
+    cooldownSeconds: number,
+  ) {
+    const normalizedEmail = email.trim().toLowerCase();
+
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        const user = await tx.user.findUnique({
+          where: { email: normalizedEmail },
+          include: { emailVerification: true },
+        });
+
+        if (!user || user.isEmailVerified) {
+          return {
+            state: 'unavailable' as const,
+            retryAfterSeconds: cooldownSeconds,
+          };
+        }
+
+        const now = new Date();
+        const record = user.emailVerification;
+
+        if (record) {
+          const retryAfterSeconds = Math.ceil(
+            (record.createdAt.getTime() + cooldownSeconds * 1000 -
+              now.getTime()) /
+              1000,
+          );
+
+          if (retryAfterSeconds > 0) {
+            return { state: 'cooldown' as const, retryAfterSeconds };
+          }
+
+          // The timestamp predicate makes simultaneous resend requests compete
+          // for the same OTP rotation; only one request can send a new code.
+          const updated = await tx.emailVerification.updateMany({
+            where: {
+              userId: user.id,
+              createdAt: record.createdAt,
+            },
+            data: {
+              tokenHash,
+              expiresAt,
+              createdAt: now,
+            },
+          });
+
+          if (updated.count === 0) {
+            const latest = await tx.emailVerification.findUnique({
+              where: { userId: user.id },
+              select: { createdAt: true },
+            });
+            const retryAfterSeconds = latest
+              ? Math.max(
+                  1,
+                  Math.ceil(
+                    (latest.createdAt.getTime() +
+                      cooldownSeconds * 1000 -
+                      now.getTime()) /
+                      1000,
+                  ),
+                )
+              : cooldownSeconds;
+
+            return { state: 'cooldown' as const, retryAfterSeconds };
+          }
+        } else {
+          await tx.emailVerification.create({
+            data: {
+              userId: user.id,
+              tokenHash,
+              expiresAt,
+              createdAt: now,
+            },
+          });
+        }
+
+        return {
+          state: 'prepared' as const,
+          retryAfterSeconds: cooldownSeconds,
+        };
+      });
+    } catch (error) {
+      if (
+        error &&
+        typeof error === 'object' &&
+        'code' in error &&
+        error.code === 'P2002'
+      ) {
+        return {
+          state: 'cooldown' as const,
+          retryAfterSeconds: cooldownSeconds,
+        };
+      }
+
+      throw error;
+    }
+  }
+
   async loginUser(dto: LoginUserDto): Promise<User> {
     const email = dto.email.trim().toLowerCase();
 
@@ -240,6 +342,7 @@ export class UserService {
       where: {
         email: email.trim().toLowerCase(),
       },
+      include: { emailVerification: true },
     });
   }
 }
