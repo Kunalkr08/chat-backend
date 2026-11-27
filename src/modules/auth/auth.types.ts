@@ -41,3 +41,8 @@ export class VerifyEmailDto {
   @Matches(/^\d{4}$/)
   otp: string;
 }
+
+export class ResendVerificationDto {
+  @IsEmail()
+  email: string;
+}

@@ -84,7 +84,10 @@ Typical configuration includes:
 ```env
 DATABASE_URL="your_postgresql_connection_string"
 JWT_SECRET="your_long_random_secret"
-JWT_TTL_SECONDS=900
+JWT_REFRESH_SECRET="another_long_random_secret"
+OTP_HASH_SECRET="another_long_random_secret"
+JWT_ACCESS_TOKEN_TTL_SECONDS=900
+JWT_REFRESH_TOKEN_TTL_SECONDS=86400
 ```
 
 Also configure the email provider credentials and any frontend/CORS settings required by your implementation.
@@ -126,6 +129,29 @@ The backend runs on the configured port. If using the default configuration, the
 Clone and configure the [Connectify frontend](https://github.com/Kunalkr08/chat-frontend). Set its API and Socket.IO URLs to point to this backend.
 
 For a physical Android device, use your computer's reachable LAN IP or a deployed backend URL instead of `localhost`.
+
+## Authentication and email verification
+
+`POST /auth/register` creates a pending account and returns `202` with
+`message`, `deliveryStatus`, and `resendAfterSeconds`. The delivery status is
+`accepted` when the email provider accepts the request, `failed` when the
+request could not be sent, or `cooldown` when another request was made too
+recently. Provider acceptance does not guarantee inbox delivery.
+
+`POST /auth/resend-verification` accepts `{ "email": "user@example.com" }` and
+returns the same response shape. Resends have a 60-second cooldown and replace
+the previous OTP when a new request is prepared. The response is generic when
+the address has no pending verification.
+
+`POST /auth/verify-email` accepts an email address and a four-digit `otp`.
+Codes expire after 10 minutes and are consumed after successful verification.
+Repeating signup for an unverified account returns the user to this flow
+instead of blocking them with a duplicate-account error.
+
+`POST /auth/login` returns an `accessToken` in the response body and sets the
+refresh token in an HTTP-only cookie. Send the access token as
+`Authorization: Bearer <accessToken>` for protected HTTP routes, or as
+`auth.token` when connecting to the Socket.IO gateway.
 
 ## Development Commands
 

@@ -18,6 +18,7 @@ import { envConfig } from '../../config/env.config.js';
 import {
   LoginDto,
   RegisterDto,
+  ResendVerificationDto,
   VerifyEmailDto,
 } from './auth.types.js';
 
@@ -27,9 +28,15 @@ export class AuthController {
 
   // Register a new user and send the OTP.
   @Post('register')
-  @HttpCode(HttpStatus.CREATED)
+  @HttpCode(HttpStatus.ACCEPTED)
   async register(@Body() dto: RegisterDto) {
     return this.authService.register(dto);
+  }
+
+  @Post('resend-verification')
+  @HttpCode(HttpStatus.ACCEPTED)
+  async resendVerification(@Body() dto: ResendVerificationDto) {
+    return this.authService.resendVerification(dto.email);
   }
 
   // Verify the four-digit OTP.
